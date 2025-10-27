@@ -119,6 +119,8 @@ public class HelloWorldBuilder extends Builder implements SimpleBuildStep {
             return FormValidation.ok();
         }
 
+        public String getFunctionName() {return "helmHistory";}
+
     public ListBoxModel doFillRevisionItems(@QueryParameter String releaseName,
                                         @QueryParameter String kubeconfigPath) {
     ListBoxModel items = new ListBoxModel();
