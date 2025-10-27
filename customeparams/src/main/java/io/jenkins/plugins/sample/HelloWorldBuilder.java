@@ -13,7 +13,6 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import hudson.util.ListBoxModel;
 
 import javax.servlet.ServletException;
 
