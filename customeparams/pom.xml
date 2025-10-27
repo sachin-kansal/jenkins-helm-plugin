@@ -11,7 +11,7 @@
     <artifactId>customeparams</artifactId>
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
-    <name>TODO Plugin</name>
+    <name>Custom Helm</name>
     <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
     <licenses>
         <license>

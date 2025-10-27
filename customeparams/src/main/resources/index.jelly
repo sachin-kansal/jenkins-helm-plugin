@@ -1,4 +1,7 @@
 <?jelly escape-by-default='true'?>
-<div>
-    TODO
-</div>
+<f:section title="Helm custom Plugin">
+    <p>
+        This plugin allows selecting a Helm release and retrieving its revision history
+        to perform rollbacks directly from Jenkins jobs.
+    </p>
+</f:section>
