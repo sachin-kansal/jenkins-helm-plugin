@@ -18,7 +18,9 @@ import javax.servlet.ServletException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,6 +44,7 @@ public class HelloWorldBuilder extends Builder implements SimpleBuildStep {
     public String getReleaseName() {
         return releaseName;
     }
+
     public String getKubeconfigPath() {
         return kubeconfigPath;
     }
@@ -54,6 +57,7 @@ public class HelloWorldBuilder extends Builder implements SimpleBuildStep {
     public void setRevision(String revision) {
         this.revision = revision;
     }
+
     @DataBoundSetter
     public void setKubeconfigPath(String kubeconfigPath) {
         this.kubeconfigPath = kubeconfigPath;
@@ -71,41 +75,43 @@ public class HelloWorldBuilder extends Builder implements SimpleBuildStep {
 
         if (revision != null && !revision.isEmpty()) {
             listener.getLogger().println("Selected revision: " + revision);
-            listener.getLogger().println("Rollback logic will be added here ✅");
+            listener.getLogger().println("Rollback logic will be added here");
         }
     }
 
     private List<String> getHelmRevisions(String release, String kubeconfigPath)
-        throws IOException, InterruptedException {
+            throws IOException, InterruptedException {
 
-    List<String> revisions = new ArrayList<>();
+        List<String> revisions = new ArrayList<>();
 
-    ProcessBuilder pb = new ProcessBuilder(
-            "helm", "history", release, "-o", "json",
-            "--kubeconfig", kubeconfigPath
-    );
+        ProcessBuilder pb = new ProcessBuilder(
+                "helm", "history", release, "-o", "json","-n","dev",
+                "--kubeconfig", kubeconfigPath
+        );
 
-    Process process = pb.start();
+        Process process = pb.start();
 
-    BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-    StringBuilder output = new StringBuilder();
-    String line;
-    while ((line = br.readLine()) != null) {
-        output.append(line);
-    }
+        // ✅ FIX 1 & 2: Specify UTF-8 encoding and close resources automatically
+        try (InputStream inputStream = process.getInputStream();
+             InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+             BufferedReader br = new BufferedReader(reader)) {
 
-    if (process.waitFor() == 0 && !output.toString().isEmpty()) {
-        JSONArray arr = JSONArray.fromObject(output.toString());
-        for (int i = 0; i < arr.size(); i++) {
-            revisions.add(arr.getJSONObject(i).getString("revision"));
+            StringBuilder output = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                output.append(line);
+            }
+
+            if (process.waitFor() == 0 && !output.toString().isEmpty()) {
+                JSONArray arr = JSONArray.fromObject(output.toString());
+                for (int i = 0; i < arr.size(); i++) {
+                    revisions.add(arr.getJSONObject(i).getString("revision"));
+                }
+            }
         }
+
+        return revisions;
     }
-
-    return revisions;
-    }
-
-
-
 
     @Symbol("helmHistory")
     @Extension
@@ -118,24 +124,31 @@ public class HelloWorldBuilder extends Builder implements SimpleBuildStep {
             return FormValidation.ok();
         }
 
-        public String getFunctionName() {return "helmHistory";}
-
-    public ListBoxModel doFillRevisionItems(@QueryParameter String releaseName,
-                                        @QueryParameter String kubeconfigPath) {
-    ListBoxModel items = new ListBoxModel();
-
-    if (releaseName == null || releaseName.isEmpty()) {
-        return items;}
-    try {
-        List<String> revisions = new HelloWorldBuilder(releaseName).getHelmRevisions(releaseName, kubeconfigPath);
-        for (String r : revisions) {
-            items.add(r);
+        public String getFunctionName() {
+            return "helmHistory";
         }
-    } catch (Exception ignored) {}
-    return items;
-    }
 
+        public ListBoxModel doFillRevisionItems(@QueryParameter String releaseName,
+                                                @QueryParameter String kubeconfigPath) {
+            ListBoxModel items = new ListBoxModel();
 
+            if (releaseName == null || releaseName.isEmpty()) {
+                return items;
+            }
+
+            // ✅ FIX 3: Catch specific exceptions instead of blanket Exception
+            try {
+                List<String> revisions = new HelloWorldBuilder(releaseName)
+                        .getHelmRevisions(releaseName, kubeconfigPath);
+                for (String r : revisions) {
+                    items.add(r);
+                }
+            } catch (IOException | InterruptedException e) {
+                // log or ignore intentionally
+            }
+
+            return items;
+        }
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
@@ -144,9 +157,7 @@ public class HelloWorldBuilder extends Builder implements SimpleBuildStep {
 
         @Override
         public String getDisplayName() {
-            return "helm HIstory lookup";
+            return "Helm History Lookup";
         }
-
     }
-
 }
